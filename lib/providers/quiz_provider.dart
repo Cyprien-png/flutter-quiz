@@ -67,13 +67,19 @@ class QuizProvider with ChangeNotifier {
 
   int _currentQuestionIndex = 0;
   bool _isGameFinished = false;
+  int _score = 0;
 
   Question get currentQuestion => _questions[_currentQuestionIndex];
   int get currentQuestionIndex => _currentQuestionIndex;
   bool get isGameFinished => _isGameFinished;
   int get totalQuestions => _questions.length;
+  int get score => _score;
 
   void answerQuestion(int selectedAnswer) {
+    if (currentQuestion.isCorrect(selectedAnswer)) {
+      _score++;
+    }
+    
     if (_currentQuestionIndex < _questions.length - 1) {
       _currentQuestionIndex++;
       notifyListeners();
@@ -86,6 +92,7 @@ class QuizProvider with ChangeNotifier {
   void resetQuiz() {
     _currentQuestionIndex = 0;
     _isGameFinished = false;
+    _score = 0;
     notifyListeners();
   }
 } 
