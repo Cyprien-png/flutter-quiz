@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'package:watch_it/watch_it.dart';
 import '../models/game_mode.dart';
 import '../providers/quiz_provider.dart';
 import 'quiz_screen.dart';
 
-class GameModeScreen extends StatelessWidget {
+class GameModeScreen extends StatelessWidget with WatchItMixin {
   const GameModeScreen({super.key});
 
   @override
@@ -23,7 +23,7 @@ class GameModeScreen extends StatelessWidget {
             margin: const EdgeInsets.only(bottom: 16.0),
             child: InkWell(
               onTap: () {
-                final quizProvider = context.read<QuizProvider>();
+                final quizProvider = di<QuizProvider>();
                 quizProvider.setGameMode(gameMode);
                 Navigator.of(context).pushReplacement(
                   MaterialPageRoute(

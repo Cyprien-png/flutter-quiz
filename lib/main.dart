@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'package:watch_it/watch_it.dart';
 import 'providers/quiz_provider.dart';
 import 'screens/game_mode_screen.dart';
 import 'services/question_service.dart';
@@ -14,11 +14,11 @@ class MyApp extends StatelessWidget {
   // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (context) => QuizProvider(
+    return WatchingBuilder(
+      store: () => QuizProvider(
         questionService: RestQuestionService(),
       ),
-      child: MaterialApp(
+      builder: (context) => MaterialApp(
         title: 'Quiz App',
         theme: ThemeData(
           // This is the theme of your application.

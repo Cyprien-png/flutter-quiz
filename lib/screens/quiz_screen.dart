@@ -1,44 +1,43 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'package:watch_it/watch_it.dart';
 import '../providers/quiz_provider.dart';
 import '../models/game_mode.dart';
+import '../models/question.dart';
 import 'game_mode_screen.dart';
 
-class QuizScreen extends StatelessWidget {
+class QuizScreen extends StatelessWidget with WatchItMixin {
   const QuizScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<QuizProvider>(
-      builder: (context, quizProvider, child) {
-        return Scaffold(
-          appBar: AppBar(
-            title: Text('Quiz - ${quizProvider.gameMode.name}'),
-            backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-          ),
-          body: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: _buildBody(context, quizProvider),
-          ),
-        );
-      },
+    final quizProvider = di<QuizProvider>();
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Quiz - ${watchValue(quizProvider.gameMode).name}'),
+        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: _buildBody(context, quizProvider),
+      ),
     );
   }
 
   Widget _buildBody(BuildContext context, QuizProvider quizProvider) {
-    if (quizProvider.isLoading) {
+    if (watchValue(quizProvider.isLoading)) {
       return const Center(
         child: CircularProgressIndicator(),
       );
     }
 
-    if (quizProvider.error != null) {
+    final error = watchValue(quizProvider.error);
+    if (error != null) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Text(
-              'Error: ${quizProvider.error}',
+              'Error: $error',
               textAlign: TextAlign.center,
               style: const TextStyle(color: Colors.red),
             ),
@@ -52,15 +51,16 @@ class QuizScreen extends StatelessWidget {
       );
     }
 
-    if (quizProvider.currentQuestion == null) {
+    final currentQuestion = watchValue(quizProvider.currentQuestion);
+    if (currentQuestion == null) {
       return const Center(
         child: Text('No questions available'),
       );
     }
 
-    return quizProvider.isGameFinished
+    return watchValue(quizProvider.isGameFinished)
         ? _buildGameOverScreen(context, quizProvider)
-        : _buildQuestionScreen(context, quizProvider);
+        : _buildQuestionScreen(context, quizProvider, currentQuestion);
   }
 
   Widget _buildGameOverScreen(BuildContext context, QuizProvider quizProvider) {
@@ -74,7 +74,7 @@ class QuizScreen extends StatelessWidget {
           ),
           const SizedBox(height: 16),
           Text(
-            'Score: ${quizProvider.score} / ${quizProvider.totalQuestions}',
+            'Score: ${watchValue(quizProvider.score)} / ${watchValue(quizProvider.totalQuestions)}',
             style: const TextStyle(fontSize: 20),
           ),
           const SizedBox(height: 32),
@@ -107,27 +107,26 @@ class QuizScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildQuestionScreen(BuildContext context, QuizProvider quizProvider) {
-    final currentQuestion = quizProvider.currentQuestion!;
-
+  Widget _buildQuestionScreen(BuildContext context, QuizProvider quizProvider, Question currentQuestion) {
+    final gameMode = watchValue(quizProvider.gameMode);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        if (quizProvider.gameMode.totalTimeLimit != null)
+        if (gameMode.totalTimeLimit != null)
           Text(
-            'Temps restant: ${quizProvider.remainingTotalTime}s',
+            'Temps restant: ${watchValue(quizProvider.remainingTotalTime)}s',
             style: TextStyle(
               fontSize: 16,
-              color: quizProvider.remainingTotalTime < 10 ? Colors.red : Colors.black,
+              color: watchValue(quizProvider.remainingTotalTime) < 10 ? Colors.red : Colors.black,
             ),
             textAlign: TextAlign.center,
           ),
-        if (quizProvider.gameMode.questionTimeLimit != null)
+        if (gameMode.questionTimeLimit != null)
           Text(
-            'Temps pour cette question: ${quizProvider.remainingQuestionTime}s',
+            'Temps pour cette question: ${watchValue(quizProvider.remainingQuestionTime)}s',
             style: TextStyle(
               fontSize: 16,
-              color: quizProvider.remainingQuestionTime < 2 ? Colors.red : Colors.black,
+              color: watchValue(quizProvider.remainingQuestionTime) < 2 ? Colors.red : Colors.black,
             ),
             textAlign: TextAlign.center,
           ),
@@ -149,7 +148,7 @@ class QuizScreen extends StatelessWidget {
               ),
           ],
         ),
-        if (quizProvider.isHintVisible && currentQuestion.hint != null)
+        if (watchValue(quizProvider.isHintVisible) && currentQuestion.hint != null)
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 8.0),
             child: Card(
@@ -180,7 +179,7 @@ class QuizScreen extends StatelessWidget {
         ),
         const Spacer(),
         Text(
-          'Question ${quizProvider.currentQuestionIndex + 1} / ${quizProvider.totalQuestions}',
+          'Question ${watchValue(quizProvider.currentQuestionIndex) + 1} / ${watchValue(quizProvider.totalQuestions)}',
           textAlign: TextAlign.center,
           style: Theme.of(context).textTheme.titleMedium,
         ),

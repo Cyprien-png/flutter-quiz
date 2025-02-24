@@ -1,76 +1,75 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
+import 'package:watch_it/watch_it.dart';
 import '../models/question.dart';
 import '../models/game_mode.dart';
 import '../services/question_service.dart';
 
-class QuizProvider with ChangeNotifier {
+class QuizProvider with WatchItMixin {
   final QuestionService _questionService;
-  List<Question> _questions = [];
-  int _currentQuestionIndex = 0;
-  bool _isGameFinished = false;
-  int _score = 0;
-  bool _isHintVisible = false;
-  bool _isLoading = false;
-  String? _error;
-  GameMode _gameMode = GameMode.rookie;
+  final _questions = ValueNotifier<List<Question>>([]);
+  final _currentQuestionIndex = ValueNotifier<int>(0);
+  final _isGameFinished = ValueNotifier<bool>(false);
+  final _score = ValueNotifier<int>(0);
+  final _isHintVisible = ValueNotifier<bool>(false);
+  final _isLoading = ValueNotifier<bool>(false);
+  final _error = ValueNotifier<String?>(null);
+  final _gameMode = ValueNotifier<GameMode>(GameMode.rookie);
+  final _remainingTotalTime = ValueNotifier<int>(0);
+  final _remainingQuestionTime = ValueNotifier<int>(0);
   Timer? _totalTimer;
   Timer? _questionTimer;
-  int _remainingTotalTime = 0;
-  int _remainingQuestionTime = 0;
 
   QuizProvider({required QuestionService questionService}) 
       : _questionService = questionService {
     _loadQuestions();
   }
 
+  List<Question> get questions => watch(_questions);
   Question? get currentQuestion => 
-      _questions.isEmpty ? null : _questions[_currentQuestionIndex];
-  int get currentQuestionIndex => _currentQuestionIndex;
-  bool get isGameFinished => _isGameFinished;
-  int get totalQuestions => _questions.length;
-  int get score => _score;
-  bool get isHintVisible => _isHintVisible;
-  bool get isLoading => _isLoading;
-  String? get error => _error;
-  GameMode get gameMode => _gameMode;
-  int get remainingTotalTime => _remainingTotalTime;
-  int get remainingQuestionTime => _remainingQuestionTime;
+      questions.isEmpty ? null : questions[currentQuestionIndex];
+  int get currentQuestionIndex => watch(_currentQuestionIndex);
+  bool get isGameFinished => watch(_isGameFinished);
+  int get totalQuestions => questions.length;
+  int get score => watch(_score);
+  bool get isHintVisible => watch(_isHintVisible);
+  bool get isLoading => watch(_isLoading);
+  String? get error => watch(_error);
+  GameMode get gameMode => watch(_gameMode);
+  int get remainingTotalTime => watch(_remainingTotalTime);
+  int get remainingQuestionTime => watch(_remainingQuestionTime);
 
   void setGameMode(GameMode mode) {
-    _gameMode = mode;
+    _gameMode.value = mode;
     _loadQuestions();
   }
 
   Future<void> _loadQuestions() async {
-    _isLoading = true;
-    _error = null;
+    _isLoading.value = true;
+    _error.value = null;
     _stopTimers();
-    notifyListeners();
 
     try {
-      _questions = await _questionService.getQuestions();
-      _questions = _questions.take(_gameMode.questionCount).toList();
-      _currentQuestionIndex = 0;
-      _isGameFinished = false;
-      _score = 0;
-      _isHintVisible = false;
+      final allQuestions = await _questionService.getQuestions();
+      _questions.value = allQuestions.take(gameMode.questionCount).toList();
+      _currentQuestionIndex.value = 0;
+      _isGameFinished.value = false;
+      _score.value = 0;
+      _isHintVisible.value = false;
       _startTimers();
     } catch (e) {
-      _error = 'Failed to load questions: $e';
+      _error.value = 'Failed to load questions: $e';
     } finally {
-      _isLoading = false;
-      notifyListeners();
+      _isLoading.value = false;
     }
   }
 
   void _startTimers() {
-    if (_gameMode.totalTimeLimit != null) {
-      _remainingTotalTime = _gameMode.totalTimeLimit!.inSeconds;
+    if (gameMode.totalTimeLimit != null) {
+      _remainingTotalTime.value = gameMode.totalTimeLimit!.inSeconds;
       _totalTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
-        if (_remainingTotalTime > 0) {
-          _remainingTotalTime--;
-          notifyListeners();
+        if (_remainingTotalTime.value > 0) {
+          _remainingTotalTime.value--;
         } else {
           _finishGame();
         }
@@ -81,13 +80,12 @@ class QuizProvider with ChangeNotifier {
   }
 
   void _startQuestionTimer() {
-    if (_gameMode.questionTimeLimit != null) {
-      _remainingQuestionTime = _gameMode.questionTimeLimit!.inSeconds;
+    if (gameMode.questionTimeLimit != null) {
+      _remainingQuestionTime.value = gameMode.questionTimeLimit!.inSeconds;
       _questionTimer?.cancel();
       _questionTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
-        if (_remainingQuestionTime > 0) {
-          _remainingQuestionTime--;
-          notifyListeners();
+        if (_remainingQuestionTime.value > 0) {
+          _remainingQuestionTime.value--;
         } else {
           answerQuestion(-1); // Force move to next question on timeout
         }
@@ -103,27 +101,25 @@ class QuizProvider with ChangeNotifier {
   }
 
   void _finishGame() {
-    _isGameFinished = true;
+    _isGameFinished.value = true;
     _stopTimers();
-    notifyListeners();
   }
 
   void answerQuestion(int selectedAnswer) {
-    if (_questions.isEmpty || currentQuestion == null) return;
+    if (questions.isEmpty || currentQuestion == null) return;
 
     if (selectedAnswer >= 0) {
       if (currentQuestion!.isCorrect(selectedAnswer)) {
-        _score++;
-      } else if (_gameMode.hasNegativePoints) {
-        _score--;
+        _score.value++;
+      } else if (gameMode.hasNegativePoints) {
+        _score.value--;
       }
     }
     
-    if (_currentQuestionIndex < _questions.length - 1) {
-      _currentQuestionIndex++;
-      _isHintVisible = false;
+    if (currentQuestionIndex < questions.length - 1) {
+      _currentQuestionIndex.value++;
+      _isHintVisible.value = false;
       _startQuestionTimer();
-      notifyListeners();
     } else {
       _finishGame();
     }
@@ -134,13 +130,22 @@ class QuizProvider with ChangeNotifier {
   }
 
   void toggleHint() {
-    _isHintVisible = !_isHintVisible;
-    notifyListeners();
+    _isHintVisible.value = !_isHintVisible.value;
   }
 
   @override
   void dispose() {
     _stopTimers();
+    _questions.dispose();
+    _currentQuestionIndex.dispose();
+    _isGameFinished.dispose();
+    _score.dispose();
+    _isHintVisible.dispose();
+    _isLoading.dispose();
+    _error.dispose();
+    _gameMode.dispose();
+    _remainingTotalTime.dispose();
+    _remainingQuestionTime.dispose();
     super.dispose();
   }
 } 
