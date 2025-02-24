@@ -68,12 +68,14 @@ class QuizProvider with ChangeNotifier {
   int _currentQuestionIndex = 0;
   bool _isGameFinished = false;
   int _score = 0;
+  bool _isHintVisible = false;
 
   Question get currentQuestion => _questions[_currentQuestionIndex];
   int get currentQuestionIndex => _currentQuestionIndex;
   bool get isGameFinished => _isGameFinished;
   int get totalQuestions => _questions.length;
   int get score => _score;
+  bool get isHintVisible => _isHintVisible;
 
   void answerQuestion(int selectedAnswer) {
     if (currentQuestion.isCorrect(selectedAnswer)) {
@@ -82,6 +84,7 @@ class QuizProvider with ChangeNotifier {
     
     if (_currentQuestionIndex < _questions.length - 1) {
       _currentQuestionIndex++;
+      _isHintVisible = false;
       notifyListeners();
     } else {
       _isGameFinished = true;
@@ -93,6 +96,12 @@ class QuizProvider with ChangeNotifier {
     _currentQuestionIndex = 0;
     _isGameFinished = false;
     _score = 0;
+    _isHintVisible = false;
+    notifyListeners();
+  }
+
+  void toggleHint() {
+    _isHintVisible = !_isHintVisible;
     notifyListeners();
   }
 } 

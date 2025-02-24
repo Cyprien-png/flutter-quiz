@@ -61,11 +61,41 @@ class QuizScreen extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text(
-          currentQuestion.text,
-          style: Theme.of(context).textTheme.headlineSmall,
-          textAlign: TextAlign.center,
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Expanded(
+              child: Text(
+                currentQuestion.text,
+                style: Theme.of(context).textTheme.headlineSmall,
+                textAlign: TextAlign.center,
+              ),
+            ),
+            if (currentQuestion.hint != null)
+              IconButton(
+                icon: const Icon(Icons.help_outline),
+                onPressed: () => _showHint(context, currentQuestion.hint!),
+              ),
+          ],
         ),
+        if (quizProvider.isHintVisible && currentQuestion.hint != null)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8.0),
+            child: Card(
+              color: Colors.blue.shade50,
+              child: Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: Text(
+                  currentQuestion.hint!,
+                  style: const TextStyle(
+                    fontStyle: FontStyle.italic,
+                    color: Colors.blue,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            ),
+          ),
         const SizedBox(height: 32),
         ...List.generate(
           currentQuestion.options.length,
@@ -85,5 +115,10 @@ class QuizScreen extends StatelessWidget {
         ),
       ],
     );
+  }
+
+  void _showHint(BuildContext context, String hint) {
+    final quizProvider = Provider.of<QuizProvider>(context, listen: false);
+    quizProvider.toggleHint();
   }
 } 
