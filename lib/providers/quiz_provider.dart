@@ -5,7 +5,7 @@ import '../models/question.dart';
 import '../models/game_mode.dart';
 import '../services/question_service.dart';
 
-class QuizProvider with WatchItMixin {
+class QuizProvider {
   final QuestionService _questionService;
   final _questions = ValueNotifier<List<Question>>([]);
   final _currentQuestionIndex = ValueNotifier<int>(0);
@@ -25,19 +25,40 @@ class QuizProvider with WatchItMixin {
     _loadQuestions();
   }
 
-  List<Question> get questions => watch(_questions);
+  ValueListenable<List<Question>> get questionsListenable => _questions;
+  List<Question> get questions => _questions.value;
+  
+  ValueListenable<int> get currentQuestionIndexListenable => _currentQuestionIndex;
+  int get currentQuestionIndex => _currentQuestionIndex.value;
+  
   Question? get currentQuestion => 
       questions.isEmpty ? null : questions[currentQuestionIndex];
-  int get currentQuestionIndex => watch(_currentQuestionIndex);
-  bool get isGameFinished => watch(_isGameFinished);
+  
+  ValueListenable<bool> get isGameFinishedListenable => _isGameFinished;
+  bool get isGameFinished => _isGameFinished.value;
+  
   int get totalQuestions => questions.length;
-  int get score => watch(_score);
-  bool get isHintVisible => watch(_isHintVisible);
-  bool get isLoading => watch(_isLoading);
-  String? get error => watch(_error);
-  GameMode get gameMode => watch(_gameMode);
-  int get remainingTotalTime => watch(_remainingTotalTime);
-  int get remainingQuestionTime => watch(_remainingQuestionTime);
+  
+  ValueListenable<int> get scoreListenable => _score;
+  int get score => _score.value;
+  
+  ValueListenable<bool> get isHintVisibleListenable => _isHintVisible;
+  bool get isHintVisible => _isHintVisible.value;
+  
+  ValueListenable<bool> get isLoadingListenable => _isLoading;
+  bool get isLoading => _isLoading.value;
+  
+  ValueListenable<String?> get errorListenable => _error;
+  String? get error => _error.value;
+  
+  ValueListenable<GameMode> get gameModeListenable => _gameMode;
+  GameMode get gameMode => _gameMode.value;
+  
+  ValueListenable<int> get remainingTotalTimeListenable => _remainingTotalTime;
+  int get remainingTotalTime => _remainingTotalTime.value;
+  
+  ValueListenable<int> get remainingQuestionTimeListenable => _remainingQuestionTime;
+  int get remainingQuestionTime => _remainingQuestionTime.value;
 
   void setGameMode(GameMode mode) {
     _gameMode.value = mode;
@@ -133,7 +154,6 @@ class QuizProvider with WatchItMixin {
     _isHintVisible.value = !_isHintVisible.value;
   }
 
-  @override
   void dispose() {
     _stopTimers();
     _questions.dispose();
@@ -146,6 +166,5 @@ class QuizProvider with WatchItMixin {
     _gameMode.dispose();
     _remainingTotalTime.dispose();
     _remainingQuestionTime.dispose();
-    super.dispose();
   }
 } 
