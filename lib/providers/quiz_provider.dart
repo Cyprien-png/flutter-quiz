@@ -1,84 +1,55 @@
 import 'package:flutter/foundation.dart';
 import '../models/question.dart';
+import '../services/question_service.dart';
 
 class QuizProvider with ChangeNotifier {
-  List<Question> _questions = [
-    Question(
-      text: "Quelle est la capitale de la France?",
-      options: ["Londres", "Paris", "Berlin"],
-      correctAnswerIndex: 1,
-      hint: "La ville avec la Tour Eiffel",
-    ),
-    Question(
-      text: "Quel est le plus grand océan du monde?",
-      options: ["Atlantique", "Indien", "Pacifique"],
-      correctAnswerIndex: 2,
-      hint: "Il borde l'Asie et les Amériques",
-    ),
-    Question(
-      text: "Qui a peint la Joconde?",
-      options: ["Van Gogh", "Leonard de Vinci", "Picasso"],
-      correctAnswerIndex: 1,
-      hint: "Un artiste italien de la Renaissance",
-    ),
-    Question(
-      text: "Quelle est la planète la plus proche du soleil?",
-      options: ["Venus", "Mars", "Mercure"],
-      correctAnswerIndex: 2,
-      hint: "La plus petite planète du système solaire",
-    ),
-    Question(
-      text: "Quel est l'élément chimique le plus abondant dans l'univers?",
-      options: ["Oxygène", "Hydrogène", "Carbone"],
-      correctAnswerIndex: 1,
-      hint: "Le plus léger des éléments",
-    ),
-    Question(
-      text: "Quelle est la plus haute montagne du monde?",
-      options: ["Mont Blanc", "Kilimandjaro", "Mont Everest"],
-      correctAnswerIndex: 2,
-      hint: "Située dans l'Himalaya",
-    ),
-    Question(
-      text: "Quel est le plus grand pays du monde?",
-      options: ["Russie", "Canada", "Chine"],
-      correctAnswerIndex: 0,
-      hint: "S'étend sur deux continents",
-    ),
-    Question(
-      text: "Qui a écrit 'Les Misérables'?",
-      options: ["Victor Hugo", "Émile Zola", "Gustave Flaubert"],
-      correctAnswerIndex: 0,
-      hint: "Un grand écrivain français du 19e siècle",
-    ),
-    Question(
-      text: "Quel est le symbole chimique de l'or?",
-      options: ["Ag", "Au", "Fe"],
-      correctAnswerIndex: 1,
-      hint: "Vient du latin 'Aurum'",
-    ),
-    Question(
-      text: "Dans quel pays se trouve la Grande Barrière de Corail?",
-      options: ["Brésil", "Indonésie", "Australie"],
-      correctAnswerIndex: 2,
-      hint: "Dans l'hémisphère sud",
-    ),
-  ];
-
+  final QuestionService _questionService;
+  List<Question> _questions = [];
   int _currentQuestionIndex = 0;
   bool _isGameFinished = false;
   int _score = 0;
   bool _isHintVisible = false;
+  bool _isLoading = false;
+  String? _error;
 
-  Question get currentQuestion => _questions[_currentQuestionIndex];
+  QuizProvider({required QuestionService questionService}) 
+      : _questionService = questionService {
+    _loadQuestions();
+  }
+
+  Question? get currentQuestion => 
+      _questions.isEmpty ? null : _questions[_currentQuestionIndex];
   int get currentQuestionIndex => _currentQuestionIndex;
   bool get isGameFinished => _isGameFinished;
   int get totalQuestions => _questions.length;
   int get score => _score;
   bool get isHintVisible => _isHintVisible;
+  bool get isLoading => _isLoading;
+  String? get error => _error;
+
+  Future<void> _loadQuestions() async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+
+    try {
+      _questions = await _questionService.getQuestions();
+      _currentQuestionIndex = 0;
+      _isGameFinished = false;
+      _score = 0;
+      _isHintVisible = false;
+    } catch (e) {
+      _error = 'Failed to load questions: $e';
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
 
   void answerQuestion(int selectedAnswer) {
-    if (currentQuestion.isCorrect(selectedAnswer)) {
+    if (_questions.isEmpty || currentQuestion == null) return;
+
+    if (currentQuestion!.isCorrect(selectedAnswer)) {
       _score++;
     }
     
@@ -93,11 +64,7 @@ class QuizProvider with ChangeNotifier {
   }
 
   void resetQuiz() {
-    _currentQuestionIndex = 0;
-    _isGameFinished = false;
-    _score = 0;
-    _isHintVisible = false;
-    notifyListeners();
+    _loadQuestions();
   }
 
   void toggleHint() {

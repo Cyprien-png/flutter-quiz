@@ -16,13 +16,49 @@ class QuizScreen extends StatelessWidget {
           ),
           body: Padding(
             padding: const EdgeInsets.all(16.0),
-            child: quizProvider.isGameFinished
-                ? _buildGameOverScreen(context, quizProvider)
-                : _buildQuestionScreen(context, quizProvider),
+            child: _buildBody(context, quizProvider),
           ),
         );
       },
     );
+  }
+
+  Widget _buildBody(BuildContext context, QuizProvider quizProvider) {
+    if (quizProvider.isLoading) {
+      return const Center(
+        child: CircularProgressIndicator(),
+      );
+    }
+
+    if (quizProvider.error != null) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              'Error: ${quizProvider.error}',
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: Colors.red),
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: () => quizProvider.resetQuiz(),
+              child: const Text('Réessayer'),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (quizProvider.currentQuestion == null) {
+      return const Center(
+        child: Text('No questions available'),
+      );
+    }
+
+    return quizProvider.isGameFinished
+        ? _buildGameOverScreen(context, quizProvider)
+        : _buildQuestionScreen(context, quizProvider);
   }
 
   Widget _buildGameOverScreen(BuildContext context, QuizProvider quizProvider) {
@@ -56,7 +92,7 @@ class QuizScreen extends StatelessWidget {
   }
 
   Widget _buildQuestionScreen(BuildContext context, QuizProvider quizProvider) {
-    final currentQuestion = quizProvider.currentQuestion;
+    final currentQuestion = quizProvider.currentQuestion!;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -74,7 +110,7 @@ class QuizScreen extends StatelessWidget {
             if (currentQuestion.hint != null)
               IconButton(
                 icon: const Icon(Icons.help_outline),
-                onPressed: () => _showHint(context, currentQuestion.hint!),
+                onPressed: () => quizProvider.toggleHint(),
               ),
           ],
         ),
@@ -115,10 +151,5 @@ class QuizScreen extends StatelessWidget {
         ),
       ],
     );
-  }
-
-  void _showHint(BuildContext context, String hint) {
-    final quizProvider = Provider.of<QuizProvider>(context, listen: false);
-    quizProvider.toggleHint();
   }
 } 
