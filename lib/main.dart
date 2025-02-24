@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'providers/quiz_provider.dart';
-import 'screens/quiz_screen.dart';
+import 'screens/game_mode_screen.dart';
 import 'services/question_service.dart';
 
 void main() {
@@ -39,7 +39,7 @@ class MyApp extends StatelessWidget {
           colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
           useMaterial3: true,
         ),
-        home: const QuizScreen(),
+        home: const GameModeScreen(),
       ),
     );
   }

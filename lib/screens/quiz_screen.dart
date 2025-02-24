@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/quiz_provider.dart';
+import '../models/game_mode.dart';
+import 'game_mode_screen.dart';
 
 class QuizScreen extends StatelessWidget {
   const QuizScreen({super.key});
@@ -11,7 +13,7 @@ class QuizScreen extends StatelessWidget {
       builder: (context, quizProvider, child) {
         return Scaffold(
           appBar: AppBar(
-            title: const Text('Quiz'),
+            title: Text('Quiz - ${quizProvider.gameMode.name}'),
             backgroundColor: Theme.of(context).colorScheme.inversePrimary,
           ),
           body: Padding(
@@ -86,6 +88,20 @@ class QuizScreen extends StatelessWidget {
               style: TextStyle(fontSize: 18),
             ),
           ),
+          const SizedBox(height: 16),
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pushReplacement(
+                MaterialPageRoute(
+                  builder: (context) => const GameModeScreen(),
+                ),
+              );
+            },
+            child: const Text(
+              'Changer de mode de jeu',
+              style: TextStyle(fontSize: 16),
+            ),
+          ),
         ],
       ),
     );
@@ -97,6 +113,25 @@ class QuizScreen extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        if (quizProvider.gameMode.totalTimeLimit != null)
+          Text(
+            'Temps restant: ${quizProvider.remainingTotalTime}s',
+            style: TextStyle(
+              fontSize: 16,
+              color: quizProvider.remainingTotalTime < 10 ? Colors.red : Colors.black,
+            ),
+            textAlign: TextAlign.center,
+          ),
+        if (quizProvider.gameMode.questionTimeLimit != null)
+          Text(
+            'Temps pour cette question: ${quizProvider.remainingQuestionTime}s',
+            style: TextStyle(
+              fontSize: 16,
+              color: quizProvider.remainingQuestionTime < 2 ? Colors.red : Colors.black,
+            ),
+            textAlign: TextAlign.center,
+          ),
+        const SizedBox(height: 16),
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
