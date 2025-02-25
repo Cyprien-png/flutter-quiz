@@ -13,7 +13,7 @@ class QuizProvider with ChangeNotifier {
   bool _isHintVisible = false;
   bool _isLoading = false;
   String? _error;
-  GameMode _gameMode = GameMode.rookie;
+  IGameMode _gameMode = GameModeFactory.getDefaultMode();
   Timer? _totalTimer;
   Timer? _questionTimer;
   int _remainingTotalTime = 0;
@@ -33,11 +33,11 @@ class QuizProvider with ChangeNotifier {
   bool get isHintVisible => _isHintVisible;
   bool get isLoading => _isLoading;
   String? get error => _error;
-  GameMode get gameMode => _gameMode;
+  IGameMode get gameMode => _gameMode;
   int get remainingTotalTime => _remainingTotalTime;
   int get remainingQuestionTime => _remainingQuestionTime;
 
-  void setGameMode(GameMode mode) {
+  void setGameMode(IGameMode mode) {
     _gameMode = mode;
     _loadQuestions();
   }
@@ -112,11 +112,8 @@ class QuizProvider with ChangeNotifier {
     if (_questions.isEmpty || currentQuestion == null) return;
 
     if (selectedAnswer >= 0) {
-      if (currentQuestion!.isCorrect(selectedAnswer)) {
-        _score++;
-      } else if (_gameMode.hasNegativePoints) {
-        _score--;
-      }
+      final isCorrect = currentQuestion!.isCorrect(selectedAnswer);
+      _score = _gameMode.calculateScore(isCorrect, _score);
     }
     
     if (_currentQuestionIndex < _questions.length - 1) {
