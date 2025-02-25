@@ -16,9 +16,9 @@ class GameModeScreen extends StatelessWidget {
       ),
       body: ListView.builder(
         padding: const EdgeInsets.all(16.0),
-        itemCount: GameMode.values.length,
+        itemCount: GameModeFactory.allModes.length,
         itemBuilder: (context, index) {
-          final gameMode = GameMode.values[index];
+          final gameMode = GameModeFactory.allModes[index];
           return Card(
             margin: const EdgeInsets.only(bottom: 16.0),
             child: InkWell(
