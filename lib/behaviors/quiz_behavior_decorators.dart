@@ -23,6 +23,9 @@ class TimeLimitDecorator extends QuizBehaviorDecorator {
     required this.onTimeExpired,
   }) : super(behavior);
 
+  @override
+  Duration? get totalTimeLimit => timeLimit;
+
   int get remainingTime => _remainingTime;
 
   @override
@@ -75,6 +78,9 @@ class QuestionTimeLimitDecorator extends QuizBehaviorDecorator {
     required this.timeLimit,
     required this.onTimeExpired,
   }) : super(behavior);
+
+  @override
+  Duration? get questionTimeLimit => timeLimit;
 
   int get remainingTime => _remainingTime;
 
