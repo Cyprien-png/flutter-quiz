@@ -24,6 +24,7 @@ class QuizProvider with ChangeNotifier {
     _loadQuestions();
   }
 
+  // Getters with null safety and validation
   Question? get currentQuestion => 
       _questions.isEmpty ? null : _questions[_currentQuestionIndex];
   int get currentQuestionIndex => _currentQuestionIndex;
@@ -38,61 +39,83 @@ class QuizProvider with ChangeNotifier {
   int get remainingQuestionTime => _remainingQuestionTime;
 
   void setGameMode(IGameMode mode) {
+    if (mode == _gameMode) return; // Guard: prevent unnecessary updates
     _gameMode = mode;
     _loadQuestions();
   }
 
   Future<void> _loadQuestions() async {
+    if (_isLoading) return; // Guard: prevent multiple simultaneous loads
+    
     _isLoading = true;
     _error = null;
     _stopTimers();
     notifyListeners();
 
     try {
-      _questions = await _questionService.getQuestions();
-      _questions = _questions.take(_gameMode.questionCount).toList();
-      _currentQuestionIndex = 0;
-      _isGameFinished = false;
-      _score = 0;
-      _isHintVisible = false;
+      final questions = await _questionService.getQuestions();
+      if (questions.isEmpty) {
+        throw Exception('No questions available');
+      }
+
+      _questions = questions.take(_gameMode.questionCount).toList();
+      _resetGameState();
       _startTimers();
     } catch (e) {
       _error = 'Failed to load questions: $e';
+      _questions = [];
+      _resetGameState();
     } finally {
       _isLoading = false;
       notifyListeners();
     }
   }
 
+  void _resetGameState() {
+    _currentQuestionIndex = 0;
+    _isGameFinished = false;
+    _score = 0;
+    _isHintVisible = false;
+  }
+
   void _startTimers() {
+    _stopTimers(); // Guard: ensure no existing timers are running
+
     if (_gameMode.totalTimeLimit != null) {
       _remainingTotalTime = _gameMode.totalTimeLimit!.inSeconds;
-      _totalTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
-        if (_remainingTotalTime > 0) {
-          _remainingTotalTime--;
-          notifyListeners();
-        } else {
-          _finishGame();
-        }
-      });
+      _totalTimer = Timer.periodic(const Duration(seconds: 1), _handleTotalTimer);
     }
 
     _startQuestionTimer();
   }
 
-  void _startQuestionTimer() {
-    if (_gameMode.questionTimeLimit != null) {
-      _remainingQuestionTime = _gameMode.questionTimeLimit!.inSeconds;
-      _questionTimer?.cancel();
-      _questionTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
-        if (_remainingQuestionTime > 0) {
-          _remainingQuestionTime--;
-          notifyListeners();
-        } else {
-          answerQuestion(-1); // Force move to next question on timeout
-        }
-      });
+  void _handleTotalTimer(Timer timer) {
+    if (_remainingTotalTime <= 0) {
+      _finishGame();
+      return;
     }
+    _remainingTotalTime--;
+    notifyListeners();
+  }
+
+  void _startQuestionTimer() {
+    if (_gameMode.questionTimeLimit == null) return;
+
+    _questionTimer?.cancel();
+    _remainingQuestionTime = _gameMode.questionTimeLimit!.inSeconds;
+    _questionTimer = Timer.periodic(
+      const Duration(seconds: 1),
+      _handleQuestionTimer,
+    );
+  }
+
+  void _handleQuestionTimer(Timer timer) {
+    if (_remainingQuestionTime <= 0) {
+      answerQuestion(-1);
+      return;
+    }
+    _remainingQuestionTime--;
+    notifyListeners();
   }
 
   void _stopTimers() {
@@ -103,15 +126,19 @@ class QuizProvider with ChangeNotifier {
   }
 
   void _finishGame() {
+    if (_isGameFinished) return; // Guard: prevent multiple finish calls
+    
     _isGameFinished = true;
     _stopTimers();
     notifyListeners();
   }
 
   void answerQuestion(int selectedAnswer) {
-    if (_questions.isEmpty || currentQuestion == null) return;
+    if (_questions.isEmpty || 
+        currentQuestion == null || 
+        _isGameFinished) return; // Guard: validate game state
 
-    if (selectedAnswer >= 0) {
+    if (selectedAnswer >= 0 && selectedAnswer < currentQuestion!.options.length) {
       final isCorrect = currentQuestion!.isCorrect(selectedAnswer);
       _score = _gameMode.calculateScore(isCorrect, _score);
     }
@@ -120,17 +147,20 @@ class QuizProvider with ChangeNotifier {
       _currentQuestionIndex++;
       _isHintVisible = false;
       _startQuestionTimer();
-      notifyListeners();
     } else {
       _finishGame();
     }
+    
+    notifyListeners();
   }
 
   void resetQuiz() {
+    if (_isLoading) return; // Guard: prevent reset while loading
     _loadQuestions();
   }
 
   void toggleHint() {
+    if (_isGameFinished || currentQuestion?.hint == null) return; // Guard: validate hint availability
     _isHintVisible = !_isHintVisible;
     notifyListeners();
   }
