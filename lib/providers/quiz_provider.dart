@@ -5,100 +5,130 @@ import '../models/game_mode.dart';
 import '../controllers/quiz_controller.dart';
 import '../controllers/game_mode_controllers.dart';
 import '../services/question_service.dart';
+import '../behaviors/quiz_behavior.dart';
+import '../behaviors/quiz_behavior_factory.dart';
+import '../behaviors/quiz_behavior_decorators.dart';
 
 class QuizProvider with ChangeNotifier {
-  QuizController _controller;
-  QuizState _state;
+  final QuestionService _questionService;
+  QuizBehavior _behavior;
+  List<Question> _questions = [];
+  int _currentQuestionIndex = 0;
+  bool _isGameFinished = false;
+  int _score = 0;
+  bool _isHintVisible = false;
+  bool _isLoading = false;
+  String? _error;
 
   QuizProvider({required QuestionService questionService})
-      : _controller = RookieQuizController(questionService: questionService),
-        _state = RookieQuizController(questionService: questionService).initialState {
+      : _questionService = questionService,
+        _behavior = QuizBehaviorFactory.createRookieMode() {
     _loadQuestions();
   }
 
   // Getters
-  Question? get currentQuestion => _state.currentQuestion;
-  int get currentQuestionIndex => _state.currentQuestionIndex;
-  bool get isGameFinished => _state.isGameFinished;
-  int get totalQuestions => _state.totalQuestions;
-  int get score => _state.score;
-  bool get isHintVisible => _state.isHintVisible;
-  bool get isLoading => _state.isLoading;
-  String? get error => _state.error;
-  IGameMode get gameMode => _state.gameMode;
-  int get remainingTotalTime => _state.remainingTotalTime;
-  int get remainingQuestionTime => _state.remainingQuestionTime;
+  Question? get currentQuestion => 
+      _questions.isEmpty ? null : _questions[_currentQuestionIndex];
+  int get currentQuestionIndex => _currentQuestionIndex;
+  bool get isGameFinished => _isGameFinished;
+  int get totalQuestions => _questions.length;
+  int get score => _score;
+  bool get isHintVisible => _isHintVisible;
+  bool get isLoading => _isLoading;
+  String? get error => _error;
+  QuizBehavior get behavior => _behavior;
+  int get remainingTotalTime => 
+      (_behavior is TimeLimitDecorator) ? 
+      (_behavior as TimeLimitDecorator).remainingTime : 0;
+  int get remainingQuestionTime => 
+      (_behavior is QuestionTimeLimitDecorator) ? 
+      (_behavior as QuestionTimeLimitDecorator).remainingTime : 0;
 
-  void setGameMode(IGameMode mode) {
-    if (mode == _state.gameMode) return;
-
-    // Create appropriate controller based on game mode
-    final QuizController newController = _createControllerForMode(mode);
+  void setBehavior(QuizBehavior newBehavior) {
+    if (newBehavior == _behavior) return;
     
-    // Dispose old controller
-    _controller.dispose();
-    
-    // Set new controller and initial state
-    _controller = newController;
-    _state = newController.initialState;
-    
-    // Load questions with new game mode
+    _behavior.dispose();
+    _behavior = newBehavior;
     _loadQuestions();
   }
 
-  QuizController _createControllerForMode(IGameMode mode) {
-    if (mode is RookieMode) {
-      return RookieQuizController(questionService: _controller.questionService);
-    } else if (mode is JourneymanMode) {
-      return JourneymanQuizController(questionService: _controller.questionService);
-    } else if (mode is WarriorMode) {
-      return WarriorQuizController(
-        questionService: _controller.questionService,
-        onStateChanged: _updateState,
-      );
-    } else if (mode is NinjaMode) {
-      return NinjaQuizController(
-        questionService: _controller.questionService,
-        onStateChanged: _updateState,
-      );
-    }
-    throw ArgumentError('Unsupported game mode: ${mode.runtimeType}');
-  }
-
-  void _updateState(QuizState newState) {
-    _state = newState;
-    if (_controller is WarriorQuizController) {
-      (_controller as WarriorQuizController).updateState(newState);
-    } else if (_controller is NinjaQuizController) {
-      (_controller as NinjaQuizController).updateState(newState);
-    }
-    notifyListeners();
-  }
-
   Future<void> _loadQuestions() async {
-    _updateState(_state.copyWith(isLoading: true));
-    final newState = await _controller.loadQuestions(_state);
-    _updateState(newState);
+    if (_isLoading) return;
+    
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+
+    try {
+      final questions = await _questionService.getQuestions();
+      if (questions.isEmpty) {
+        throw Exception('No questions available');
+      }
+
+      _questions = questions.take(_behavior.questionCount).toList();
+      _resetGameState();
+      _behavior.onQuizStarted();
+    } catch (e) {
+      _error = 'Failed to load questions: $e';
+      _questions = [];
+      _resetGameState();
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  void _resetGameState() {
+    _currentQuestionIndex = 0;
+    _isGameFinished = false;
+    _score = 0;
+    _isHintVisible = false;
   }
 
   void answerQuestion(int selectedAnswer) {
-    final newState = _controller.handleAnswer(_state, selectedAnswer);
-    _updateState(newState);
+    if (_questions.isEmpty || 
+        currentQuestion == null || 
+        _isGameFinished) return;
+
+    if (selectedAnswer >= 0 && selectedAnswer < currentQuestion!.options.length) {
+      final isCorrect = currentQuestion!.isCorrect(selectedAnswer);
+      _score = _behavior.calculateScore(isCorrect, _score);
+    }
+
+    _behavior.onQuestionAnswered(currentQuestion!, selectedAnswer);
+    
+    if (_currentQuestionIndex < _questions.length - 1) {
+      _currentQuestionIndex++;
+      _isHintVisible = false;
+    } else {
+      _finishGame();
+    }
+    
+    notifyListeners();
+  }
+
+  void _finishGame() {
+    if (_isGameFinished) return;
+    
+    _isGameFinished = true;
+    _behavior.onQuizFinished();
+    notifyListeners();
   }
 
   void resetQuiz() {
-    if (_state.isLoading) return;
+    if (_isLoading) return;
     _loadQuestions();
   }
 
   void toggleHint() {
-    final newState = _controller.toggleHint(_state);
-    _updateState(newState);
+    if (_isGameFinished || currentQuestion?.hint == null) return;
+    _isHintVisible = !_isHintVisible;
+    notifyListeners();
   }
 
   @override
   void dispose() {
-    _controller.dispose();
+    _behavior.dispose();
     super.dispose();
   }
 } 
