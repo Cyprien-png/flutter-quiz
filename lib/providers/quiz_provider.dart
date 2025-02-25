@@ -37,6 +37,7 @@ class QuizProvider with ChangeNotifier {
   bool get isLoading => _isLoading;
   String? get error => _error;
   QuizBehavior get behavior => _behavior;
+  QuizBehavior get gameMode => _behavior;
   int get remainingTotalTime => 
       (_behavior is TimeLimitDecorator) ? 
       (_behavior as TimeLimitDecorator).remainingTime : 0;
@@ -50,6 +51,23 @@ class QuizProvider with ChangeNotifier {
     _behavior.dispose();
     _behavior = newBehavior;
     _loadQuestions();
+  }
+
+  void setGameMode(IGameMode mode) {
+    if (mode is RookieMode) {
+      setBehavior(QuizBehaviorFactory.createRookieMode());
+    } else if (mode is JourneymanMode) {
+      setBehavior(QuizBehaviorFactory.createJourneymanMode());
+    } else if (mode is WarriorMode) {
+      setBehavior(QuizBehaviorFactory.createWarriorMode(
+        onTimeExpired: () => _finishGame(),
+      ));
+    } else if (mode is NinjaMode) {
+      setBehavior(QuizBehaviorFactory.createNinjaMode(
+        onTotalTimeExpired: () => _finishGame(),
+        onQuestionTimeExpired: () => answerQuestion(-1),
+      ));
+    }
   }
 
   Future<void> _loadQuestions() async {
