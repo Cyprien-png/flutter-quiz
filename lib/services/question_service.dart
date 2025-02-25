@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:html_unescape/html_unescape.dart';
 import '../models/question.dart';
 
 abstract class QuestionService {
@@ -19,12 +20,15 @@ class QuestionServiceException implements Exception {
 class RestQuestionService implements QuestionService {
   final String baseUrl;
   final http.Client _client;
+  final HtmlUnescape _htmlUnescape;
 
   RestQuestionService({
     String? baseUrl,
     http.Client? client,
+    HtmlUnescape? htmlUnescape,
   }) : baseUrl = baseUrl ?? 'https://opentdb.com/api.php',
-       _client = client ?? http.Client();
+       _client = client ?? http.Client(),
+       _htmlUnescape = htmlUnescape ?? HtmlUnescape();
 
   @override
   Future<List<Question>> getQuestions() async {
@@ -63,6 +67,10 @@ class RestQuestionService implements QuestionService {
     }
   }
 
+  String _decodeHtmlEntities(String text) {
+    return _htmlUnescape.convert(text);
+  }
+
   List<Question> _transformToQuestions(Map<String, dynamic> data) {
     final results = data['results'] as List? ?? [];
     
@@ -73,8 +81,12 @@ class RestQuestionService implements QuestionService {
     return results.map((questionData) {
       try {
         final List<String> incorrectAnswers = 
-            (questionData['incorrect_answers'] as List? ?? []).cast<String>();
-        final String correctAnswer = questionData['correct_answer'] as String? ?? '';
+            (questionData['incorrect_answers'] as List? ?? [])
+            .map((answer) => _decodeHtmlEntities(answer.toString()))
+            .toList();
+        final String correctAnswer = _decodeHtmlEntities(
+          questionData['correct_answer']?.toString() ?? ''
+        );
         
         if (incorrectAnswers.isEmpty || correctAnswer.isEmpty) {
           throw QuestionServiceException('Invalid question data format');
@@ -83,10 +95,10 @@ class RestQuestionService implements QuestionService {
         final options = [...incorrectAnswers, correctAnswer]..shuffle();
 
         return Question(
-          text: questionData['question'] as String? ?? '',
+          text: _decodeHtmlEntities(questionData['question']?.toString() ?? ''),
           options: options,
           correctAnswerIndex: options.indexOf(correctAnswer),
-          hint: "Indice: ${questionData['category'] ?? 'General'}",
+          hint: "Indice: ${_decodeHtmlEntities(questionData['category']?.toString() ?? 'General')}",
         );
       } catch (e) {
         throw QuestionServiceException('Error transforming question data', e);
